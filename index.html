@@ -1,34 +1,45 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Ward Cartogram Comparison</title>
+    <title>D3 Maps</title>
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
     <meta charset='utf-8' />
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-queue.v3.min.js"></script>
+    <script src="lib/colorbrewer.min.js"></script>
     <style>
-    body {
+    * {
       font-family: "Verdana";
-    }
-    #map {
-      display: inline-block;
-      width: 500px;
-      height: 650px;
+      font-size: 10;
     }
     #map-container {
-      margin-top: 50px;
-      vertical-align: top;
-      width: 400px;
-      height: 500px;
-      display: inline-block;
+      display: block;
+    }
+    path {
+      stroke: black;
+      stroke-width: 0.3;
+    }
+    g text {
+      alignment-baseline: central;
+      text-anchor: middle;
+      font-size: 10px;
     }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
-    <link rel="stylesheet" href="css/squaire.css"/>
-    <script src="js/squaire.js"></script>
-    <script src="js/colorbrewer.min.js"></script>
   </head>
   <body>
-    <svg id="map"></svg>
-    <div id="map-container"></div>
-    <script src="js/ward_cartogram.js"></script>
+    <input name="toWards"
+           type="button"
+           value="To Wards"
+           onclick="toWards()" />
+    <input name="toSquares"
+           type="button"
+           value="To Squares"
+           onclick="toSquares()" />
+   <input name="toBars"
+          type="button"
+          value="To Bars"
+          onclick="toBars()" />
+    <svg id="map-container"></svg>
+    <script src="js/script.js"></script>
   </body>
 </html>
