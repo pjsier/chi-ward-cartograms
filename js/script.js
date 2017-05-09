@@ -2,8 +2,11 @@
 // Created with http://code.minnpost.com/aranger/ and Squaire WSJ library
 var chi_ward_layout = [[0,0,"41"],[3,0,"50"],[4,0,"49"],[1,1,"45"],[2,1,"39"],[3,1,"40"],[4,1,"48"],[0,2,"38"],[1,2,"30"],[2,2,"35"],[3,2,"33"],[4,2,"47"],[5,2,"46"],[1,3,"29"],[2,3,"36"],[3,3,"31"],[4,3,"32"],[5,3,"44"],[2,4,"37"],[3,4,"26"],[4,4,"1"],[5,4,"2"],[6,4,"43"],[3,5,"24"],[4,5,"28"],[5,5,"27"],[6,5,"42"],[3,6,"22"],[4,6,"12"],[5,6,"25"],[6,6,"11"],[1,7,"23"],[2,7,"14"],[3,7,"16"],[4,7,"15"],[5,7,"20"],[6,7,"3"],[7,7,"4"],[2,8,"13"],[3,8,"18"],[4,8,"17"],[5,8,"21"],[6,8,"6"],[7,8,"5"],[4,9,"19"],[5,9,"34"],[6,9,"8"],[7,9,"7"],[6,10,"9"],[7,10,"10"]];
 var SQ_SIZE = 50;
-var transitionTime = 1000;
+var ease = d3.easeQuadInOut;
+var transitionTime = 500;
+var transitionDelay = 15;
 var projection, path, geoData, centered, maxData, svg;
+var active = d3.select(null);
 
 // Margin convention from https://bl.ocks.org/mbostock/3019563
 var margin = {top: 20, right: 10, bottom: 20, left: 10};
@@ -46,37 +49,42 @@ function pathTween(d1, precision) {
   };
 }
 
-// Zoom to ward on click
-function clicked(d) {
-  var x, y, k;
+// Zoom to ward on click, pulled from https://bl.ocks.org/mbostock/4699541
+function reset() {
+  active.classed("active", false);
+  active = d3.select(null);
 
-  if (d && centered !== d) {
-    var centroid = path.centroid(d);
-    x = centroid[0];
-    y = centroid[1];
-    k = 4;
-    centered = d;
-  } else {
-    x = width / 2;
-    y = height / 2;
-    k = 1;
-    centered = null;
-  }
-
-  var g = d3.selectAll("g");
-  g.selectAll("path")
-    .classed("active", centered && function(d) { return d === centered; });
-
-  g.transition()
-    .duration(750)
-    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
-    .style("stroke-width", 1.5 / k + "px");
+  svg.transition()
+    .duration(transitionTime)
+    .style("stroke-width", "1.5px")
+    .attr("transform", "");
 }
 
-function transitionShapes(el, tween){
+function clicked(d) {
+  if (active.node() === this) return reset();
+  active.classed("active", false);
+  active = d3.select(this).classed("active", true);
+
+  var bounds = path.bounds(d),
+      dx = bounds[1][0] - bounds[0][0],
+      dy = bounds[1][1] - bounds[0][1],
+      x = (bounds[0][0] + bounds[1][0]) / 2,
+      y = (bounds[0][1] + bounds[1][1]) / 2,
+      scale = .9 / Math.max(dx / width, dy / height),
+      translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+  svg.transition()
+    .duration(transitionTime)
+    .style("stroke-width", 1.5 / scale + "px")
+    .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+}
+
+function transitionShapes(el, idx, tween){
 	 d3.select(el)
 		.transition()
+    .delay(idx*transitionDelay)
 		.duration(transitionTime)
+    .ease(ease)
 		.attrTween('d', pathTween(tween, 5));
 }
 
@@ -105,12 +113,14 @@ function toWards() {
 
   svg.selectAll("g path")
     .style("opacity", "1")
-    .each(function(d) { transitionShapes(this, path(d)); })
+    .each(function(d, i) { transitionShapes(this, i, path(d)); })
     .on("click", clicked);
 
   svg.selectAll("g text")
     .transition()
+    .delay(function(d, i) { return i*transitionDelay; })
     .duration(transitionTime)
+    .ease(ease)
     .attr("x", function(d) { return path.centroid(d)[0]; })
     .attr("y", function(d) { return path.centroid(d)[1]; });
 }
@@ -121,11 +131,14 @@ function toSquares() {
   }
 
   svg.selectAll("g path")
-    .each(function(d) { transitionShapes(this, convertRectPath(d.x*SQ_SIZE, d.y*SQ_SIZE, SQ_SIZE, SQ_SIZE)); });
+    .each(function(d, i) { transitionShapes(this, i, convertRectPath(d.x*SQ_SIZE, d.y*SQ_SIZE, SQ_SIZE, SQ_SIZE)); })
+    .on("click", null);
 
   svg.selectAll("g text")
     .transition()
+    .delay(function(d, i) { return i*transitionDelay; })
     .duration(transitionTime)
+    .ease(ease)
     .attr("x", function(d) { return (d.x*SQ_SIZE)+25; })
     .attr("y", function(d) { return (d.y*SQ_SIZE)+25; });
 }
@@ -141,13 +154,16 @@ function toBars() {
   x.domain(geoData.map(function(d) { return d.properties.ward; }));
 
   svg.selectAll("g path")
-    .each(function(d) {
-      transitionShapes(this, convertRectPath(25, x(d.properties.ward), width-y(d.val), x.bandwidth()));
-    });
+    .each(function(d, i) {
+      transitionShapes(this, i, convertRectPath(25, x(d.properties.ward), width-y(d.val), x.bandwidth()));
+    })
+    .on("click", null);
 
   svg.selectAll("g text")
     .transition()
+    .delay(function(d, i) { return i*transitionDelay; })
     .duration(transitionTime)
+    .ease(ease)
     .attr("x", 10)
     .attr("y", function(d) { return x(d.properties.ward)+(x.bandwidth()/2); });
 }
