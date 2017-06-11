@@ -1,5 +1,5 @@
 var svg, width, height, projection, path, ward_data, ward_points;
-var transitionTime = 1000;
+var transitionTime = 2000;
 var cbColors = "OrRd";
 
 
@@ -34,11 +34,13 @@ function transitionShapes(el, tween){
 	 d3.select(el)
 		.transition()
 		.duration(transitionTime)
-		.attrTween('d', pathTween(tween, 1));
+    .attr("fill-opacity", 0.8)
+    .ease(d3.easeCubic)
+		.attrTween('d', pathTween(tween, 7));
 }
 
 function explodeShape() {
-  svg.select("g.chicago").selectAll("path.points")
+  svg.select("g.points").selectAll("path.points")
     .each(function(d) { transitionShapes(this, path(d)); });
 }
 
@@ -48,16 +50,25 @@ function handlePointGeoJson(json) {
   var t = [(width - s * (bounds[1][0] + bounds[0][0])) / 2, (height - s * (bounds[1][1] + bounds[0][1])) / 2];
   projection.scale(s).translate(t);
 
-  svg.select("g.chicago")
+
+  var g = svg.select("g.chicago");
+  var clip = g.append("clipPath")
+      .attr("id", "ward-clip")
+    .append("path")
+      .attr("d", function() { return path(ward_data.features[0]); });
+
+  var dPath = d3.path();
+  dPath.arc(width/2, height/2, height/2, 0, Math.PI*2);
+  // Create separate path function with larger points
+  var hidePath =  d3.geoPath().projection(projection).pointRadius(function(d) { return 40; });
+  g.append("g")
+    .attr("class", "points")
     .selectAll("path.points")
-      .data(json.features, function(d) {return d.point;})
+      .data(json.features, function(d, i) {return i;})
       .enter().append("path")
         .attr("class", "points")
-        .attr("d", function(d) { return path(ward_data.features[0]); })
-        .attr("fill-opacity", 0.8)
-        .attr("stroke", "#6F7070")
-        .attr("stroke-opacity", 0.8)
-        .attr("stroke-width", 1)
+        .attr("clip-path", "url(#ward-clip)")
+        .attr("d", hidePath)
         .attr("fill", "#b30000");
 }
 
@@ -73,10 +84,11 @@ function handlePointGeoJson(json) {
 
   d3.queue()
     .defer(d3.json, "data/chi_single_ward.geojson")
-    .defer(d3.json, "data/single_ward_points.geojson")
+    .defer(d3.json, "data/ward_46_pts.geojson")
     .await(function(error, ward, points) {
       ward_data = ward;
       ward_points = points;
+      ward_points['features'] = ward_points['features'].slice(0, 200);
       handlePointGeoJson(ward_points);
     });
 })()
